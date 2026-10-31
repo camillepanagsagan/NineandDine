@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nine and Dine | Veggets | Your Trusted Taste</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-green: #2e7d32;
+            --accent-green: #4caf50;
+            --brand-yellow: #fbc02d;
+            --dark-bg: #121811;
+            --card-bg: #ffffff;
+            --body-bg: #f7f9f6;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--body-bg);
+            color: #2c3e50;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Header & Navigation */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Cart Sidebar Drawer Transition */
+        .cart-sidebar {
+            position: fixed;
+            top: 0;
+            right: -420px;
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            background-color: #ffffff;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+            z-index: 100;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cart-sidebar.open {
+            right: 0;
+        }
+
+        .cart-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            z-index: 90;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+
+        .cart-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Hero Section Styling */
+        .hero-section {
+    background: linear-gradient(135deg, rgba(20, 50, 25, 0.88), rgba(46, 125, 50, 0.8)), 
+                url('images/home.jpg') center/cover no-repeat;
+}
+
+        /* Card Hover Effects */
+        .menu-card {
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Toast Popup Notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 120;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast bg-emerald-800 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3 border border-emerald-600">
+        <span class="text-xl">✅</span>
+        <span id="toastMsg" class="font-medium text-sm">Item added to cart!</span>
+    </div>
+
+    <!-- Cart Overlay -->
+    <div id="cartOverlay" class="cart-overlay" onclick="toggleCart()"></div>
+
+    <!-- Cart Sidebar Drawer -->
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-header p-5 bg-emerald-900 text-white flex justify-between items-center shadow-md">
+            <h3 class="text-lg font-bold tracking-wide">YOUR ORDER (<span id="cartCount">0</span>)</h3>
+            <button class="close-cart text-2xl font-bold hover:text-yellow-400 transition" onclick="toggleCart()">&times;</button>
+        </div>
+
+        <div id="cartItemsList" class="cart-body flex-1 overflow-y-auto p-5 space-y-4">
+            <p class="text-center text-gray-400 mt-12 font-medium">Your cart is empty</p>
+        </div>
+
+        <div class="cart-footer p-5 border-t border-gray-100 bg-gray-50 space-y-4">
+            <div class="promo-container flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2">
+                <span class="promo-icon mr-2">🏷️</span>
+                <input type="text" id="promoInput" placeholder="Enter a promo code" class="w-full text-sm outline-none bg-transparent">
+                <button onclick="applyPromo()" class="text-xs font-bold text-emerald-700 uppercase hover:underline ml-1">Apply</button>
+            </div>
+            
+            <div class="total-row flex justify-between items-center pt-2 border-t border-gray-200">
+                <span class="font-semibold text-gray-600">Estimated total</span>
+                <span class="estimated-total text-xl font-black text-emerald-800">₱<span id="estimatedTotal">0.00</span></span>
+            </div>
+            
+            <div class="cart-btns space-y-2">
+                <a href="#contact" class="checkout-now-btn block text-center w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 rounded-xl font-bold uppercase tracking-wider text-sm shadow-md transition" onclick="toggleCart()">Checkout Now</a>
+                <button class="continue-shopping w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-2.5 rounded-xl font-semibold text-xs uppercase tracking-wider transition" onclick="toggleCart()">Continue Shopping</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="py-4 px-6 md:px-12 flex justify-between items-center">
+        <div class="logo text-2xl font-black tracking-wider text-emerald-900 flex items-center">
+            <span class="text-yellow-500 mr-1 text-3xl"></span> Nine and Dine
+        </div>
+        <nav class="hidden md:flex items-center space-x-8 font-semibold text-gray-700 text-sm uppercase tracking-wide">
+            <a href="#home" class="hover:text-emerald-700 transition">Home</a>
+            <a href="#about" class="hover:text-emerald-700 transition">About</a>
+            <a href="#products" class="hover:text-emerald-700 transition">Menu</a>
+            <a href="#contact" class="hover:text-emerald-700 transition">Contact</a>
+        </nav>
+        <button class="cart-icon-btn relative bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-5 rounded-full shadow-md flex items-center space-x-2 transition" onclick="toggleCart()">
+            <span>🛒</span>
+            <span class="text-sm">Cart</span>
+            <span id="navCartBadge" class="bg-yellow-400 text-emerald-950 font-black text-xs px-2 py-0.5 rounded-full ml-1">0</span>
+        </button>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero-section py-24 px-6 md:px-16 text-white text-center md:text-left flex items-center min-h-[520px]">
+        <div class="max-w-2xl space-y-6">
+            <span class="badge inline-block bg-yellow-400 text-emerald-950 font-black px-4 py-1 rounded-full text-xs uppercase tracking-widest">Nine and Dine Presents</span>
+            <h1 class="text-4xl md:text-6xl font-black leading-tight">The Perfect <br><span class="text-yellow-400">Veggets</span></h1>
+            <p class="text-gray-100 text-base md:text-lg leading-relaxed font-normal">Crunchy, plant-based Veggets and Filipino favorites delivered straight to your door with integrity and high standards.</p>
+            <div class="hero-actions pt-4 flex flex-col sm:flex-row gap-4">
+                <a href="#products" class="btn-primary inline-block text-center bg-yellow-400 hover:bg-yellow-500 text-emerald-950 font-bold px-8 py-3.5 rounded-xl shadow-lg hover:shadow-xl transition text-sm uppercase tracking-wider">Order Now</a>
+                <a href="#about" class="btn-secondary inline-block text-center border-2 border-white hover:bg-white hover:text-emerald-900 font-bold px-8 py-3.5 rounded-xl transition text-sm uppercase tracking-wider">Our Story</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Us Section -->
+    <section id="about" class="py-20 px-6 md:px-12 bg-white">
+        <div class="max-w-6xl mx-auto space-y-12">
+            <div class="about-header text-center max-w-3xl mx-auto space-y-4">
+                <h2 class="text-3xl md:text-4xl font-black text-emerald-900">About Us</h2>
+                <p class="text-gray-600 text-base md:text-lg leading-relaxed">Nine and Dine introduces Veggets, a plant-based alternative to traditional nuggets. What sets us apart is our commitment to nutrition, integrity, and high standards in food safety.</p>
+            </div>
+
+            <div class="mission-vision-grid grid md:grid-cols-2 gap-8">
+                <div class="mv-card bg-emerald-50/60 border border-emerald-100 p-8 rounded-2xl space-y-4">
+                    <span class="icon text-4xl block">🎯</span>
+                    <h3 class="text-xl font-bold text-emerald-900">Our Mission</h3>
+                    <p class="text-gray-600 leading-relaxed text-sm md:text-base">To provide high-quality, plant-based food options that don't compromise on taste, ensuring everyone has access to healthy and sustainable meals.</p>
+                </div>
+
+                <div class="mv-card bg-emerald-50/60 border border-emerald-100 p-8 rounded-2xl space-y-4">
+                    <span class="icon text-4xl block">👁️</span>
+                    <h3 class="text-xl font-bold text-emerald-900">Our Vision</h3>
+                    <p class="text-gray-600 leading-relaxed text-sm md:text-base">To become a leading name in nutritious plant-based dining, inspiring a healthier lifestyle for families across the country, one bite at a time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu Section -->
+    <section id="products" class="py-20 px-6 md:px-12 bg-emerald-900 text-white">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-center mb-12 tracking-wide text-yellow-400">Our Menu</h2>
+            
+            <div class="menu-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 text-gray-800">
+        
+<!-- Card 4: Original Veggets Options Dropdown -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="originalImg" 
+             src="images/rice3.jpg" 
+             alt="Original Veggets" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/fef3c7/b45309?text=Original+Veggets'">
+    </div>
+
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Original Veggets</h3>
+
+    <div class="flavor-selection my-2">
+        <select id="originalOption" onchange="updateItemImage('originalOption', 'originalImg', 'originalPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Original Veggets (Rice Meal 3pcs)" data-img="images/rice3.jpg" data-price="63">Rice Meal 3pcs - ₱63</option>
+            <option value="Original Veggets (Rice Meal 4pcs)" data-img="images/rice4.jpg" data-price="71">Rice Meal 4pcs - ₱71</option>
+            <option value="Original Veggets (Rice Meal 5pcs)" data-img="images/rice5.jpg" data-price="79">Rice Meal 5pcs - ₱79</option>
+            <option value="Original Veggets (Solo 3pcs)" data-img="images/solo3.png" data-price="48">Solo 3pcs - ₱48</option>
+            <option value="Original Veggets (Solo 4pcs)" data-img="images/solo4.png" data-price="56">Solo 4pcs - ₱56</option>
+            <option value="Original Veggets (Solo 5pcs)" data-img="images/solo5.png" data-price="65">Solo 5pcs - ₱65</option>
+        </select>
+    </div>
+
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="originalPriceTag" class="text-xl font-extrabold text-emerald-600">₱63</span>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty4')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty4" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty4')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('originalOption', 'qty4')">Add to Cart</button>
+    </div>
+</div>
+               <!-- Card 5: Bochon Veggets (5pcs) Dropdown -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="bochonImg" 
+             src="images/solo20.jpg" 
+             alt="Bochon Veggets 5pcs" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/fef3c7/b45309?text=Bochon+Veggets'">
+    </div>
+
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Bochon Veggets (5pcs)</h3>
+
+    <div class="flavor-selection my-2">
+        <select id="bochonOption" onchange="updateItemImage('bochonOption', 'bochonImg', 'bochonPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Bochon Veggets 5pcs (Solo)" data-img="images/solo20.jpg" data-price="69">Solo - ₱69</option>
+            <option value="Bochon Veggets 5pcs (Rice Meal)" data-img="images/solo20.jpg" data-price="82">Rice Meal - ₱82</option>
+        </select>
+    </div>
+
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="bochonPriceTag" class="text-xl font-extrabold text-emerald-600">₱69</span>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty5')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty5" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty5')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('bochonOption', 'qty5')">Add to Cart</button>
+    </div>
+</div>
+
+               <!-- Card 6: Sweet and Sour Veggets (5pcs) Dropdown -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="sweetSourImg" 
+             src="images/sweet.jpg" 
+             alt="Sweet and Sour Veggets 5pcs" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/fef3c7/b45309?text=Sweet+and+Sour+Veggets'">
+    </div>
+
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Sweet and Sour Veggets (5pcs)</h3>
+
+    <div class="flavor-selection my-2">
+        <select id="sweetSourOption" onchange="updateItemImage('sweetSourOption', 'sweetSourImg', 'sweetSourPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Sweet and Sour Veggets 5pcs (Solo)" data-img="images/sweet.jpg" data-price="77">Solo - ₱77</option>
+            <option value="Sweet and Sour Veggets 5pcs (Rice Meal)" data-img="images/sweet.jpg" data-price="89">Rice Meal - ₱89</option>
+        </select>
+    </div>
+
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="sweetSourPriceTag" class="text-xl font-extrabold text-emerald-600">₱77</span>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty6')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty6" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty6')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('sweetSourOption', 'qty6')">Add to Cart</button>
+    </div>
+</div>
+
+                <!-- Card 7: Veggets Ala King (5pcs) Dropdown -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="alakingImg" 
+             src="images/alaking.jpg" 
+             alt="Veggets Ala King 5pcs" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/fef9c3/78350f?text=Veggets+Ala+King'">
+    </div>
+
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Veggets Ala King (5pcs)</h3>
+
+    <div class="flavor-selection my-2">
+        <select id="alakingOption" onchange="updateItemImage('alakingOption', 'alakingImg', 'alakingPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Veggets Ala King 5pcs (Solo)" data-img="images/alaking.jpg" data-price="77">Solo - ₱77</option>
+            <option value="Veggets Ala King 5pcs (Rice Meal)" data-img="images/alaking.jpg" data-price="89">Rice Meal - ₱89</option>
+        </select>
+    </div>
+
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="alakingPriceTag" class="text-xl font-extrabold text-emerald-600">₱77</span>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty7')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty7" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty7')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('alakingOption', 'qty7')">Add to Cart</button>
+    </div>
+</div>
+               <!-- Card 8: Cheesy Garlic Veggets Dropdown -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="cheesyImg" 
+             src="images/cheesy.jpg" 
+             alt="Cheesy Garlic Veggets" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/fef3c7/78350f?text=Cheesy+Garlic+Veggets'">
+    </div>
+
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Cheesy Garlic Veggets (5pcs)</h3>
+
+    <div class="flavor-selection my-2">
+        <select id="cheesyOption" onchange="updateItemImage('cheesyOption', 'cheesyImg', 'cheesyPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Cheesy Garlic Veggets 5pcs (Solo)" data-img="images/cheesy.jpg" data-price="85">Solo - ₱85</option>
+            <option value="Cheesy Garlic Veggets 5pcs (Rice Meal)" data-img="images/cheesy.jpg" data-price="98">Rice Meal - ₱98</option>
+        </select>
+    </div>
+
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="cheesyPriceTag" class="text-xl font-extrabold text-emerald-600">₱85</span>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty8')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty8" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty8')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('cheesyOption', 'qty8')">Add to Cart</button>
+    </div>
+</div>
+
+                <!-- Dropdown Card 1: Rice Options -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="riceImg" 
+             src="images/rice.jpg" 
+             alt="Rice Options" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/f8fafc/e2e8f0?text=Rice+Options'">
+    </div>
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Rice Options</h3>
+    <div class="flavor-selection my-2">
+        <select id="riceFlavor" onchange="updateItemImage('riceFlavor', 'riceImg', 'ricePriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Plain Rice" data-img="images/rice.jpg" data-price="15">Plain Rice - ₱15</option>
+            <option value="Chao Pan Rice" data-img="images/chao pan.jpg" data-price="25">Chao Pan Rice - ₱25</option>
+        </select>
+    </div>
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="ricePriceTag" class="text-xl font-extrabold text-emerald-600">₱15</span>
+    </div>
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty9')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty9" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty9')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('riceFlavor', 'qty9')">Add to Cart</button>
+    </div>
+</div>
+
+                <!-- Dropdown Card 2: Dip Sauce Add-on -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="dipImg" 
+             src="images/gravy.png" 
+             alt="Dip Sauce" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/f8fafc/e2e8f0?text=Dip+Sauce'">
+    </div>
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Dip Sauce</h3>
+    <div class="flavor-selection my-2">
+        <select id="dipFlavor" onchange="updateItemImage('dipFlavor', 'dipImg', 'dipPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Gravy Sauce" data-img="images/gravy.png" data-price="10">Gravy Sauce - ₱10</option>
+            <option value="Mayo Sauce" data-img="images/mayo.png" data-price="10">Mayo Sauce - ₱10</option>
+            <option value="Ketchup" data-img="images/ketchup.png" data-price="10">Ketchup - ₱10</option>
+        </select>
+    </div>
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="dipPriceTag" class="text-xl font-extrabold text-emerald-600">₱10</span>
+    </div>
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty10')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty10" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty10')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('dipFlavor', 'qty10')">Add to Cart</button>
+    </div>
+</div>
+
+                <!-- Dropdown Card 3: Drinks Add-on -->
+<div class="menu-card bg-white rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 border-2 border-emerald-100">
+    <div class="menu-img-container mb-4 rounded-xl overflow-hidden bg-emerald-50 h-44 flex items-center justify-center">
+        <img id="drinkImg" 
+             src="images/lemon ice tea.jpg" 
+             alt="Drinks" 
+             class="w-full h-full object-cover transition-all duration-300"
+             onerror="this.src='https://placehold.co/400x300/f8fafc/e2e8f0?text=Drinks'">
+    </div>
+    <h3 class="font-bold text-lg text-emerald-950 mb-1">Drinks</h3>
+    <div class="flavor-selection my-2">
+        <select id="drinkFlavor" onchange="updateItemImage('drinkFlavor', 'drinkImg', 'drinkPriceTag')" class="w-full bg-gray-50 border border-gray-200 text-gray-800 font-bold p-2 rounded-lg text-sm outline-none cursor-pointer focus:ring-2 focus:ring-emerald-600">
+            <option value="Lemon Iced Tea" data-img="images/lemon ice tea.jpg" data-price="29">Lemon Iced Tea - ₱29</option>
+            <option value="Apple Iced Tea" data-img="images/apple ice tea.jpg" data-price="29">Apple Iced Tea - ₱29</option>
+            <option value="Cucumber Lemonade Juice" data-img="images/cucumber.jpg" data-price="29">Cucumber Lemonade Juice - ₱29</option>
+        </select>
+    </div>
+    <div class="flex justify-between items-center my-3">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Price</span>
+        <span id="drinkPriceTag" class="text-xl font-extrabold text-emerald-600">₱29</span>
+    </div>
+    <div class="flex items-center justify-between gap-3 mt-2">
+        <div class="qty-control flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button onclick="decreaseQty('qty11')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">-</button>
+            <span id="qty11" class="w-8 text-center font-bold text-gray-800">1</span>
+            <button onclick="increaseQty('qty11')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">+</button>
+        </div>
+        <button class="add-btn flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-sm" onclick="addDropdownToCart('drinkFlavor', 'qty11')">Add to Cart</button>
+    </div>
+</div>
+
+            </div>
+        </div>
+    </section>
+    <!-- Checkout / Contact Section -->
+    <section id="contact" class="py-20 px-6 md:px-12 bg-gray-50 flex-1">
+        <div class="max-w-3xl mx-auto space-y-8">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl md:text-4xl font-black text-emerald-900">Place Your Order</h2>
+                <p class="text-gray-600">Fill out the details below to finalize your plant-based feast.</p>
+            </div>
+            
+            <div class="bg-white p-8 rounded-2xl shadow-xl space-y-6 border border-gray-100">
+                <div class="space-y-1">
+                    <label for="name" class="block text-xs font-bold text-gray-600 uppercase">Full Name</label>
+                    <input type="text" id="name" placeholder="Juan Dela Cruz" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:ring-2 focus:ring-emerald-600 transition">
+                </div>
+                
+                <div class="space-y-1">
+                    <label for="address" class="block text-xs font-bold text-gray-600 uppercase">Delivery Address</label>
+                    <input type="text" id="address" placeholder="House No., Street Name, Barangay, Valenzuela City" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:ring-2 focus:ring-emerald-600 transition">
+                    <span class="text-xs text-gray-400 block pt-1">e.g., Street Name, Barangay, Valenzuela City</span>
+                </div>
+                
+                <div class="space-y-1">
+                    <label for="summary" class="block text-xs font-bold text-gray-600 uppercase">Order Summary</label>
+                    <textarea id="summary" rows="5" placeholder="Your order summary will automatically appear here once items are added..." readonly class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-700 text-sm font-mono outline-none resize-none cursor-not-allowed"></textarea>
+                </div>
+                
+                <button onclick="checkout()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-4 rounded-xl text-base uppercase tracking-wider shadow-lg hover:shadow-xl transition transform active:scale-95">Place Order Now</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-emerald-950 text-gray-300 pt-16 pb-8 px-6 md:px-12 border-t border-emerald-900">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12">
+            <div class="space-y-4">
+                <h3 class="text-white font-bold text-lg tracking-wide uppercase border-b border-emerald-800 pb-2">Quick Links</h3>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="#home" class="hover:text-yellow-400 transition">Home</a></li>
+                    <li><a href="#about" class="hover:text-yellow-400 transition">About Story</a></li>
+                    <li><a href="#products" class="hover:text-yellow-400 transition">Menu</a></li>
+                    <li><a href="javascript:void(0)" onclick="toggleCart()" class="hover:text-yellow-400 transition">View Cart</a></li>
+                </ul>
+            </div>
+            
+            <div class="space-y-4">
+                <h3 class="text-white font-bold text-lg tracking-wide uppercase border-b border-emerald-800 pb-2">Location</h3>
+                <a href="https://www.google.com/maps?q=4031+Gen+T+De+Leon+Valenzuela+City" target="_blank" class="text-sm block hover:text-yellow-400 leading-relaxed transition">
+                    📍 4031 Gen T De Leon<br>
+                    Valenzuela City, Metro Manila
+                </a>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-white font-bold text-lg tracking-wide uppercase border-b border-emerald-800 pb-2">Operating Hours</h3>
+                <ul class="space-y-2 text-sm">
+                    <li><span class="font-bold text-yellow-400">Mon - Sunday:</span> 10:00 AM - 8:00 PM</li>
+                </ul>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-white font-bold text-lg tracking-wide uppercase border-b border-emerald-800 pb-2">Contact Info</h3>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="https://facebook.com" target="_blank" class="hover:text-yellow-400 transition">Facebook: Nine & Dine</a></li>
+                    <li><a href="https://instagram.com" target="_blank" class="hover:text-yellow-400 transition">Instagram: @dinenineand</a></li>
+                    <li><a href="https://tiktok.com" target="_blank" class="hover:text-yellow-400 transition">TikTok: @nine.dine</a></li>
+                    <li><a href="tel:09937280860" class="hover:text-yellow-400 transition">📞 0993-728-0860</a></li>
+                    <li><a href="mailto:ninedineco09@gmail.com" class="hover:text-yellow-400 transition">📧 ninedineco09@gmail.com</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="border-t border-emerald-900 pt-8 text-center text-xs text-gray-400">
+            Created by <span class="text-yellow-400 font-bold">Nine and Dine</span> | All Rights Reserved
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Global Cart State Array
+        let cart = [];
+
+        // 1. Toggle Cart Drawer Visibility
+        function toggleCart() {
+            const sidebar = document.getElementById('cartSidebar');
+            const overlay = document.getElementById('cartOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        // 2. Quantity Increments for Menu Items
+        function increaseQty(id) {
+            const qtyElem = document.getElementById(id);
+            if (qtyElem) {
+                let current = parseInt(qtyElem.innerText, 10) || 1;
+                qtyElem.innerText = current + 1;
+            }
+        }
+
+        function decreaseQty(id) {
+            const qtyElem = document.getElementById(id);
+            if (qtyElem) {
+                let current = parseInt(qtyElem.innerText, 10) || 1;
+                if (current > 1) {
+                    qtyElem.innerText = current - 1;
+                }
+            }
+        }
+
+        // 3. Dynamic Dropdown Updates (Image & Price)
+        function updateItemImage(selectId, imgId, priceId) {
+            const selectElem = document.getElementById(selectId);
+            const imgElem = document.getElementById(imgId);
+            const priceElem = priceId ? document.getElementById(priceId) : null;
+
+            if (!selectElem || !imgElem) return;
+
+            const selectedOption = selectElem.options[selectElem.selectedIndex];
+            const newImg = selectedOption.getAttribute('data-img');
+            const newPrice = selectedOption.getAttribute('data-price');
+
+            if (newImg) {
+                imgElem.src = newImg;
+            }
+            if (priceElem && newPrice) {
+                priceElem.innerText = `₱${newPrice}`;
+            }
+        }
+
+        // 4. Add Regular Items to Cart
+        function addToCart(title, price, qtyId, imgUrl) {
+            const qtyElem = document.getElementById(qtyId);
+            const quantity = qtyElem ? parseInt(qtyElem.innerText, 10) || 1 : 1;
+
+            const existingItem = cart.find(item => item.title === title);
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                cart.push({
+                    title: title,
+                    price: parseFloat(price),
+                    quantity: quantity,
+                    img: imgUrl
+                });
+            }
+
+            // Reset menu item qty back to 1
+            if (qtyElem) qtyElem.innerText = '1';
+
+            renderCart();
+            showToast(`Added ${quantity}x ${title} to cart!`);
+        }
+
+        // 5. Add Dropdown Items to Cart
+        function addDropdownToCart(selectId, qtyId) {
+            const selectElem = document.getElementById(selectId);
+            if (!selectElem) return;
+
+            const selectedOption = selectElem.options[selectElem.selectedIndex];
+            const title = selectedOption.value;
+            const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+            const imgUrl = selectedOption.getAttribute('data-img');
+
+            addToCart(title, price, qtyId, imgUrl);
+        }
+
+        // 6. Change Cart Quantity
+        function updateCartQty(index, delta) {
+            if (cart[index]) {
+                cart[index].quantity += delta;
+                if (cart[index].quantity <= 0) {
+                    cart.splice(index, 1);
+                }
+                renderCart();
+            }
+        }
+
+        // 7. Remove Item from Cart
+        function removeFromCart(index) {
+            if (cart[index]) {
+                cart.splice(index, 1);
+                renderCart();
+            }
+        }
+
+        // 8. Promo Code Application
+        function applyPromo() {
+            const input = document.getElementById('promoInput');
+            if (input && input.value.trim().toUpperCase() === 'VEGGETS10') {
+                showToast('Promo VEGGETS10 applied!');
+            } else {
+                showToast('Invalid promo code');
+            }
+        }
+
+        // 9. Render Cart & Sync Summary Input
+        function renderCart() {
+            const cartList = document.getElementById('cartItemsList');
+            const cartCountElem = document.getElementById('cartCount');
+            const navBadge = document.getElementById('navCartBadge');
+            const totalElem = document.getElementById('estimatedTotal');
+            const summaryTextArea = document.getElementById('summary');
+
+            let total = 0;
+            let itemCount = 0;
+
+            if (cart.length === 0) {
+                cartList.innerHTML = `<p class="text-center text-gray-400 mt-12 font-medium">Your cart is empty</p>`;
+                if (summaryTextArea) summaryTextArea.value = '';
+            } else {
+                let html = '';
+                let summaryText = '--- ORDER SUMMARY ---\n';
+
+                cart.forEach((item, idx) => {
+                    const itemTotal = item.price * item.quantity;
+                    total += itemTotal;
+                    itemCount += item.quantity;
+
+                    summaryText += `${item.quantity}x ${item.title} - ₱${itemTotal.toFixed(2)}\n`;
+
+                    html += `
+                        <div class="cart-item flex items-center justify-between border-b border-gray-100 pb-3">
+                            <div class="flex items-center space-x-3">
+                                <img src="${item.img}" alt="${item.title}" class="w-12 h-12 object-cover rounded-lg bg-emerald-50">
+                                <div>
+                                    <h4 class="text-xs font-bold text-gray-800 max-w-[130px] leading-tight">${item.title}</h4>
+                                    <p class="text-xs text-emerald-700 font-bold">₱${item.price.toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="flex items-center bg-gray-100 rounded">
+                                    <button onclick="updateCartQty(${idx}, -1)" class="px-2 py-0.5 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-l">-</button>
+                                    <span class="text-xs font-bold px-2">${item.quantity}</span>
+                                    <button onclick="updateCartQty(${idx}, 1)" class="px-2 py-0.5 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-r">+</button>
+                                </div>
+                                <button onclick="removeFromCart(${idx})" class="text-red-400 hover:text-red-600 font-bold text-sm px-1">&times;</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                cartList.innerHTML = html;
+                summaryText += `---------------------\nEstimated Total: ₱${total.toFixed(2)}`;
+                if (summaryTextArea) summaryTextArea.value = summaryText;
+            }
+
+            if (cartCountElem) cartCountElem.innerText = itemCount;
+            if (navBadge) navBadge.innerText = itemCount;
+            if (totalElem) totalElem.innerText = total.toFixed(2);
+        }
+
+        // 10. Checkout Process
+        function checkout() {
+            const name = document.getElementById('name').value.trim();
+            const address = document.getElementById('address').value.trim();
+
+            if (cart.length === 0) {
+                showToast('Your cart is empty! Add items first.');
+                return;
+            }
+
+            if (!name || !address) {
+                showToast('Please enter your Name and Delivery Address.');
+                return;
+            }
+
+            showToast('Order placed successfully! Thank you!');
+            cart = [];
+            document.getElementById('name').value = '';
+            document.getElementById('address').value = '';
+            renderCart();
+        }
+
+        // 11. Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            if (toast && toastMsg) {
+                toastMsg.innerText = msg;
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 2800);
+            }
+        }
+
+        // Initialize default option selections on page load
+        window.onload = function() {
+            updateItemImage('riceFlavor', 'riceImg', 'ricePriceTag');
+            updateItemImage('dipFlavor', 'dipImg', 'dipPriceTag');
+            updateItemImage('drinkFlavor', 'drinkImg', 'drinkPriceTag');
+        };
+    </script>
+</body>
+</html>
